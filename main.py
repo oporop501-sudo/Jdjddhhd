@@ -6,6 +6,7 @@ import http.server
 import socketserver
 from telebot import types
 
+# === ФЕЙКОВЫЙ ВЕБ-СЕРВЕР ДЛЯ RENDER ===
 def run_fake_server():
     port = int(os.environ.get("PORT", 10000))
     handler = http.server.SimpleHTTPRequestHandler
@@ -18,7 +19,7 @@ def run_fake_server():
 
 threading.Thread(target=run_fake_server, daemon=True).start()
 
-TOKEN = '8898188227:AAFoWQkK31YRDVqMb0gVnauzeSFzog9w5ms'
+TOKEN = '8898188227:AAEuWprLoWjC28IrSQUnVi347pRjvdp0yHc'
 bot = telebot.TeleBot(TOKEN)
 ADMIN_USERNAME = "BlazingSerafim"
 
@@ -57,7 +58,7 @@ def start_command(message):
     welcome = (
         "👋 Привет, дорогой мой друг!\n\n"
         "🏪 Добро пожаловать в мой магазин по игре **Five Nights Tower Defense**!\n\n"
-        "У нас в наличии есть самые ценные ресурсы:\n"
+        "У нас в наличии есть самые ценные resources:\n"
         "✨ **Souls** (Души) и 💎 **Units** (Юниты)\n\n"
         "А также топовые редкости для твоей коллекции:\n"
         "💀 **Forgotten** | 🔮 **Apex** | 😈 **Nightmare**\n\n"
@@ -118,7 +119,7 @@ def handle_buttons(call):
     elif call.data == "profile":
         cursor.execute("SELECT points FROM users WHERE user_id = ?", (chat_id,))
         res = cursor.fetchone()
-        points = res[0] if res else 0
+        points = res if res else 0
         markup = types.InlineKeyboardMarkup()
         markup.add(types.InlineKeyboardButton("⬅️ В меню", callback_data="back_to_main"))
         text = (
@@ -160,8 +161,8 @@ def handle_buttons(call):
 def process_admin_add(message):
     try:
         parts = message.text.split()
-        target = parts[0].replace("@", "").lower().strip()
-        amount = int(parts[1])
+        target = parts.replace("@", "").lower().strip()
+        amount = int(parts)
         
         cursor.execute("SELECT user_id, points FROM users WHERE username = ?", (target,))
         user = cursor.fetchone()
@@ -169,11 +170,11 @@ def process_admin_add(message):
             bot.send_message(message.chat.id, f"❌ Пользователь @{target} не найден.")
             return
             
-        new_bal = user[1] + amount
+        new_bal = user + amount
         cursor.execute("UPDATE users SET points = ? WHERE username = ?", (new_bal, target))
         conn.commit()
         bot.send_message(message.chat.id, f"✅ Успешно начислено *{amount}* баллов для @{target}!", parse_mode='Markdown')
-        try: bot.send_message(user[0], f"🎉 Баланс пополнен на *{amount}* баллов! Проверь профиль.")
+        try: bot.send_message(user, f"🎉 Баланс пополнен на *{amount}* баллов! Проверь профиль.")
         except: pass
     except:
         bot.send_message(message.chat.id, "⚠️ Ошибка ввода. Нужно ввести ник и число через пробел.")
@@ -181,23 +182,23 @@ def process_admin_add(message):
 def process_admin_take(message):
     try:
         parts = message.text.split()
-        target = parts[0].replace("@", "").lower().strip()
-        amount = int(parts[1])
+        target = parts.replace("@", "").lower().strip()
+        amount = int(parts)
         
         cursor.execute("SELECT user_id, points FROM users WHERE username = ?", (target,))
         user = cursor.fetchone()
         if not user:
             bot.send_message(message.chat.id, f"❌ Пользователь @{target} не найден.")
             return
-        if user[1] < amount:
-            bot.send_message(message.chat.id, f"⚠️ У игрока всего {user[1]} баллов. Нельзя списать {amount}!")
+        if user < amount:
+            bot.send_message(message.chat.id, f"⚠️ У игрока всего {user} баллов. Нельзя списать {amount}!")
             return
             
-        new_bal = user[1] - amount
+        new_bal = user - amount
         cursor.execute("UPDATE users SET points = ? WHERE username = ?", (new_bal, target))
         conn.commit()
         bot.send_message(message.chat.id, f"✅ Успешно списано *{amount}* баллов у @{target}!", parse_mode='Markdown')
-        try: bot.send_message(user[0], f"📉 С твоего баланса списано *{amount}* баллов.")
+        try: bot.send_message(user, f"📉 С твоего баланса списано *{amount}* баллов.")
         except: pass
     except:
         bot.send_message(message.chat.id, "⚠️ Ошибка ввода. Нужно ввести ник и число через пробел.")
@@ -214,9 +215,9 @@ def auto_update_broadcast(message):
     markup.add(types.InlineKeyboardButton("🛒 Открыть Магазин", callback_data="shop"))
     
     for user in all_users:
-        if user[1] and user[1].lower() == ADMIN_USERNAME.lower(): continue
+        if user and user.lower() == ADMIN_USERNAME.lower(): continue
         try:
-            bot.send_message(user[0], text, reply_markup=markup, parse_mode='Markdown')
+            bot.send_message(user, text, reply_markup=markup, parse_mode='Markdown')
             success += 1
         except: pass
     bot.send_message(message.chat.id, f"✅ Рассылка завершена! Доставлено: {success} покупателям.")
@@ -249,5 +250,6 @@ def process_souls_input(message):
         bot.send_message(message.chat.id, text, reply_markup=markup, parse_mode='Markdown')
 
 if __name__ == "__main__":
-    print("Бот запущен. Всё готово к тесту!")
-    bot.infinity_polling()
+    print("Бот запущен. Сбрасываем старые сессии...")
+    # Параметр skip_pending=True очистит очередь сообщений, скопившихся во время конфликта
+    bot.infinity_polling(skip_pending=True)
