@@ -1,14 +1,24 @@
-import os, sqlite3, telebot, threading, http.server, socketserver
+import os
+import sqlite3
+import telebot
+import threading
+import http.server
+import socketserver
 from telebot import types
 
-# Фейковый порт для Render
+# Фейковый веб-сервер для Render (чтобы сервис не засыпал)
 def run_fake_server():
     port = int(os.environ.get("PORT", 10000))
     handler = http.server.SimpleHTTPRequestHandler
-    with socketserver.TCPServer(("", port), handler) as httpd:
-        httpd.serve_forever()
+    try:
+        with socketserver.TCPServer(("", port), handler) as httpd:
+            httpd.serve_forever()
+    except Exception as e:
+        print(f"Ошибка веб-сервера: {e}")
+
 threading.Thread(target=run_fake_server, daemon=True).start()
 
+# Настройки бота
 TOKEN = '8846255632:AAFTuQcgY_u5WOM1FOjeg6ldANc9k3qnvFo'
 bot = telebot.TeleBot(TOKEN)
 ADMIN_USERNAME = "BlazingSerafim"
@@ -18,7 +28,7 @@ db_path = "bot_users.db"
 conn = sqlite3.connect(db_path, check_same_thread=False)
 cursor = conn.cursor()
 
-# Создаем правильную структуру БД
+# Создаем структуру БД
 cursor.execute('''
     CREATE TABLE IF NOT EXISTS users (
         user_id INTEGER PRIMARY KEY, 
@@ -33,11 +43,13 @@ def save_user_data(user_id, username):
         uname = username.lower() if username else ""
         cursor.execute("SELECT user_id FROM users WHERE user_id = ?", (user_id,))
         if cursor.fetchone():
-            if uname: cursor.execute("UPDATE users SET username = ? WHERE user_id = ?", (uname, user_id))
+            if uname: 
+                cursor.execute("UPDATE users SET username = ? WHERE user_id = ?", (uname, user_id))
         else:
             cursor.execute("INSERT INTO users (user_id, username, points) VALUES (?, ?, 0)", (user_id, uname))
         conn.commit()
-    except: pass
+    except Exception as e:
+        print(f"Ошибка БД (save_user_data): {e}")
 
 @bot.message_handler(commands=['start'])
 def start_command(message):
@@ -60,11 +72,13 @@ def start_command(message):
 
 @bot.message_handler(commands=['admin'])
 def admin_panel(message):
-    if not message.from_user.username or message.from_user.username.lower() != ADMIN_USERNAME.lower(): return
+    if not message.from_user.username or message.from_user.username.lower() != ADMIN_USERNAME.lower(): 
+        return
     markup = types.InlineKeyboardMarkup()
     markup.add(types.InlineKeyboardButton("➕ Выдать баллы", callback_data="adm_add"))
     markup.add(types.InlineKeyboardButton("➖ Списать баллы", callback_data="adm_take"))
-    bot.send_message(message.chat.id, "👑 **Панель администратора магазина**", reply_markup=markup, parse_mode='Markdown') @bot.callback_query_handler(func=lambda call: True)
+    bot.send_message(message.chat.id, "👑 **Панель администратора магазина**", reply_markup=markup, parse_mode='Markdown')
+    @bot.callback_query_handler(func=lambda call: True)
 def handle_buttons(call):
     chat_id = call.message.chat.id
     msg_id = call.message.message_id
@@ -90,7 +104,14 @@ def handle_buttons(call):
         text = f"👤 **Профиль покупателя**\n\n🏷 Ник: @{call.from_user.username}\n💎 **Бонусы:** {points} баллов\n\n🔥 Баллами можно оплатить до 50% заказа у админа! Сообщите о желании потратить баллы при подтверждении заказа."
         bot.edit_message_text(text, chat_id, msg_id, reply_markup=markup, parse_mode='Markdown')
     elif call.data == "back_to_main":
-        start_command(call.message)
+        markup = types.InlineKeyboardMarkup()
+        markup.add(types.InlineKeyboardButton("🛒 Магазин", callback_data="shop"), types.InlineKeyboardButton("👤 Профиль", callback_data="profile"))
+        welcome = (
+            "👋 Привет, дорогой мой друг!\n\n"
+            "🏪 Добро пожаловать в мой магазин по игре **Five Nights Tower Defense**!\n\n"
+            "Выбирай нужный раздел на кнопках ниже 👇"
+        )
+        bot.edit_message_text(welcome, chat_id, msg_id, reply_markup=markup, parse_mode='Markdown')
     elif call.data == "buy_souls":
         bot.edit_message_text("📥 **Напишите в чат, сколько Souls вы хотите заказать (числом от 10 000 шт.):**", chat_id, msg_id, parse_mode='Markdown')
         bot.register_next_step_handler_by_chat_id(chat_id, process_souls_order)
@@ -105,23 +126,25 @@ def handle_buttons(call):
 
 def process_souls_order(message):
     markup = types.InlineKeyboardMarkup().add(types.InlineKeyboardButton("🛒 В магазин", callback_data="shop"))
-    if not message.text.isdigit():
+    if not message.text or not message.text.isdigit():
         bot.send_message(message.chat.id, "⚠️ Пожалуйста, введите количество цифрами!", reply_markup=markup)
         return
     amount = int(message.text)
     if amount < 10000:
         bot.send_message(message.chat.id, "❌ Минимальный заказ от 10 000 душ!", reply_markup=markup)
         return
-    # Расчет по новому курсу 1к = 0.3р (1 душа = 0.0003р)
     price = amount * 0.0003
     send_ticket_to_admin(message.from_user, f"✨ {amount:,} Souls", price)
     bot.send_message(message.chat.id, f"✅ **Тикет вашего заказа успешно отправлен!**\n\n🛍 Товар: {amount:,} Souls\n💵 Сумма к оплате: {price:.2f} ₽\n\nВладелец магазина @BlazingSerafim свяжется с вами в личке для приёма оплаты (ОЗОН Банк)!", reply_markup=markup, parse_mode='Markdown')
 
 def send_ticket_to_admin(user, item_name, price):
-    cursor.execute("SELECT points FROM users WHERE username = ?", (user.username.lower() if user.username else "",))
-    res = cursor.fetchone()
-    user_points = res[0] if res else 0
-    # Расчет кэшбэка ровно 6% от суммы в рублях
+    try:
+        cursor.execute("SELECT points FROM users WHERE username = ?", (user.username.lower() if user.username else "",))
+        res = cursor.fetchone()
+        user_points = res[0] if res else 0
+    except:
+        user_points = 0
+        
     recommended_cashback = int(price * 0.06)
     
     ticket = (
@@ -152,9 +175,12 @@ def process_admin_add(message):
         cursor.execute("UPDATE users SET points = ? WHERE username = ?", (new_bal, target))
         conn.commit()
         bot.send_message(message.chat.id, f"✅ Начислено {amount} б. для @{target}!")
-        try: bot.send_message(user[0], f"🎉 Твой баланс пополнен на *{amount}* баллов! Проверь профиль.")
-        except: pass
-    except: bot.send_message(message.chat.id, "⚠️ Ошибка. Формат: ник число")
+        try: 
+            bot.send_message(user[0], f"🎉 Твой баланс пополнен на *{amount}* баллов! Проверь профиль.", parse_mode='Markdown')
+        except: 
+            pass
+    except: 
+        bot.send_message(message.chat.id, "⚠️ Ошибка. Формат: ник число")
 
 def process_admin_take(message):
     try:
@@ -163,26 +189,35 @@ def process_admin_take(message):
         amount = int(parts[1])
         cursor.execute("SELECT user_id, points FROM users WHERE username = ?", (target,))
         user = cursor.fetchone()
-        if not user or user[1] < amount: return
+        if not user or user[1] < amount: 
+            bot.send_message(message.chat.id, f"❌ У пользователя недостаточно баллов или он не найден.")
+            return
         new_bal = user[1] - amount
         cursor.execute("UPDATE users SET points = ? WHERE username = ?", (new_bal, target))
         conn.commit()
         bot.send_message(message.chat.id, f"✅ Списано {amount} б. у @{target}!")
-        try: bot.send_message(user[0], f"📉 С твоего бонусного баланса списано *{amount}* баллов.")
-        except: pass
-    except: bot.send_message(message.chat.id, "⚠️ Ошибка.")
+        try: 
+            bot.send_message(user[0], f"📉 С твоего бонусного баланса списано *{amount}* баллов.", parse_mode='Markdown')
+        except: 
+            pass
+    except: 
+        bot.send_message(message.chat.id, "⚠️ Ошибка. Формат: ник число")
 
 @bot.message_handler(commands=['update'])
 def auto_update_broadcast(message):
-    if not message.from_user.username or message.from_user.username.lower() != ADMIN_USERNAME.lower(): return
+    if not message.from_user.username or message.from_user.username.lower() != ADMIN_USERNAME.lower(): 
+        return
     cursor.execute("SELECT user_id, username FROM users")
     all_users = cursor.fetchall()
     text = "🔔 **Внимание! Наличие товара в магазине обновлено!**\n\nЗаходи скорее в меню 🛒 Магазин -> Наличие юнитов! ✨"
     markup = types.InlineKeyboardMarkup().add(types.InlineKeyboardButton("🛒 Открыть Магазин", callback_data="shop"))
     for user in all_users:
-        if user[1] and user[1].lower() == ADMIN_USERNAME.lower(): continue
-        try: bot.send_message(user[0], text, reply_markup=markup, parse_mode='Markdown')
-        except: pass
+        if user[1] and user[1].lower() == ADMIN_USERNAME.lower(): 
+            continue
+        try: 
+            bot.send_message(user[0], text, reply_markup=markup, parse_mode='Markdown')
+        except: 
+            pass
 
 if __name__ == "__main__":
     bot.infinity_polling()
