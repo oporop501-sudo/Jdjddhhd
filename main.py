@@ -85,8 +85,7 @@ def admin_panel(message):
     markup.add(types.InlineKeyboardButton("➖ Списать баллы", callback_data="adm_take"))
     markup.add(types.InlineKeyboardButton("📢 Сделать рассылку (/update)", callback_data="adm_update"))
     
-    bot.send_message(message.chat.id, "👑 **Панель администратора магазина**", reply_markup=markup, parse_mode='Markdown') 
-
+    bot.send_message(message.chat.id, "👑 **Панель администратора магазина**", reply_markup=markup, parse_mode='Markdown')
 @bot.callback_query_handler(func=lambda call: True)
 def handle_buttons(call):
     chat_id = call.message.chat.id
