@@ -69,6 +69,7 @@ def handle_buttons(call):
     chat_id = call.message.chat.id
     msg_id = call.message.message_id
     save_user_data(chat_id, call.from_user.username)
+
     if call.data == "adm_add":
         bot.edit_message_text("✏️ Введите никнейм и количество баллов через пробел (Пример: `Ivan_Fnaf 50`):", chat_id, msg_id)
         bot.register_next_step_handler_by_chat_id(chat_id, process_admin_add)
