@@ -19,7 +19,7 @@ def run_fake_server():
 threading.Thread(target=run_fake_server, daemon=True).start()
 
 # Настройки бота
-TOKEN = '8846255632:AAFTuQcgY_u5WOM1FOjeg6ldANc9k3qnvFo'
+TOKEN = '8846255632:AAE2VE6Im2_U31Cxyvgwz8oAgdAGQ47Pkd4'
 bot = telebot.TeleBot(TOKEN)
 ADMIN_USERNAME = "BlazingSerafim"
 ADMIN_ID = 8846255632  # Твой ID для получения тикетов заказа
