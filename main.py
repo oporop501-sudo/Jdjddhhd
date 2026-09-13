@@ -72,18 +72,18 @@ def admin_panel(message):
     if not message.from_user.username or message.from_user.username.lower() != ADMIN_USERNAME.lower():
         bot.send_message(message.chat.id, "❌ У тебя нет прав администратора!")
         return
-    
+        
     markup = types.InlineKeyboardMarkup()
     markup.add(types.InlineKeyboardButton("➕ Выдать баллы", callback_data="adm_add"))
     markup.add(types.InlineKeyboardButton("➖ Списать баллы", callback_data="adm_take"))
     markup.add(types.InlineKeyboardButton("📢 Сделать рассылку (/update)", callback_data="adm_update"))
     
-    bot.send_message(message.chat.id, "👑 **Панель администратора магазина**\n\nВыбери нужное действие на кнопках ниже:", reply_markup=markup, parse_mode='Markdown')
-    @bot.callback_query_handler(func=lambda call: True)
+    bot.send_message(message.chat.id, "👑 **Панель администратора магазина**\n\nВыбери нужное действие на кнопках ниже:", reply_markup=markup, parse_mode='Markdown') @bot.callback_query_handler(func=lambda call: True)
 def handle_buttons(call):
     chat_id = call.message.chat.id
     msg_id = call.message.message_id
     save_user_data(chat_id, call.from_user.username)
+
     if call.data == "adm_add":
         bot.edit_message_text("✏️ **Начисление баллов**\n\nВведите никнейм покупателя и количество баллов через пробел.\n*Пример:* `Ivan_Fnaf 50`", chat_id, msg_id, parse_mode='Markdown')
         bot.register_next_step_handler_by_chat_id(chat_id, process_admin_add)
