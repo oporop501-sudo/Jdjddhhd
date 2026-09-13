@@ -6,7 +6,6 @@ import http.server
 import socketserver
 from telebot import types
 
-# === ФЕЙКОВЫЙ ВЕБ-СЕРВЕР ДЛЯ RENDER ===
 def run_fake_server():
     port = int(os.environ.get("PORT", 10000))
     handler = http.server.SimpleHTTPRequestHandler
@@ -18,7 +17,6 @@ def run_fake_server():
         print(f"[WEB] Ошибка веб-сервера: {e}")
 
 threading.Thread(target=run_fake_server, daemon=True).start()
-# =======================================
 
 TOKEN = '8898188227:AAEuWprLoWjC28IrSQUnVi347pRjvdp0yHc'
 bot = telebot.TeleBot(TOKEN)
@@ -28,7 +26,6 @@ db_path = "bot_users.db"
 conn = sqlite3.connect(db_path, check_same_thread=False)
 cursor = conn.cursor()
 
-# База данных клиентов
 cursor.execute('''
     CREATE TABLE IF NOT EXISTS users (
         user_id INTEGER PRIMARY KEY,
@@ -70,25 +67,23 @@ def start_command(message):
     )
     bot.send_message(message.chat.id, welcome, reply_markup=markup, parse_mode='Markdown')
 
-# Вызов панели администратора
 @bot.message_handler(commands=['admin'])
 def admin_panel(message):
     if not message.from_user.username or message.from_user.username.lower() != ADMIN_USERNAME.lower():
         bot.send_message(message.chat.id, "❌ У тебя нет прав администратора!")
         return
-        
+    
     markup = types.InlineKeyboardMarkup()
     markup.add(types.InlineKeyboardButton("➕ Выдать баллы", callback_data="adm_add"))
     markup.add(types.InlineKeyboardButton("➖ Списать баллы", callback_data="adm_take"))
     markup.add(types.InlineKeyboardButton("📢 Сделать рассылку (/update)", callback_data="adm_update"))
     
-    bot.send_message(message.chat.id, "👑 **Панель администратора магазина**\n\nВыбери нужное действие на кнопках ниже:", reply_markup=markup, parse_mode='Markdown') @bot.callback_query_handler(func=lambda call: True)
+    bot.send_message(message.chat.id, "👑 **Панель администратора магазина**\n\nВыбери нужное действие на кнопках ниже:", reply_markup=markup, parse_mode='Markdown')
+    @bot.callback_query_handler(func=lambda call: True)
 def handle_buttons(call):
     chat_id = call.message.chat.id
     msg_id = call.message.message_id
     save_user_data(chat_id, call.from_user.username)
-
-    # Кнопки админки
     if call.data == "adm_add":
         bot.edit_message_text("✏️ **Начисление баллов**\n\nВведите никнейм покупателя и количество баллов через пробел.\n*Пример:* `Ivan_Fnaf 50`", chat_id, msg_id, parse_mode='Markdown')
         bot.register_next_step_handler_by_chat_id(chat_id, process_admin_add)
@@ -103,7 +98,6 @@ def handle_buttons(call):
         bot.answer_callback_query(call.id)
         bot.send_message(chat_id, "💡 Для автоматической рассылки об обновлении товара просто используй текстовую команду `/update` в чате.", parse_mode='Markdown')
 
-    # Пользовательские кнопки
     elif call.data == "shop":
         markup = types.InlineKeyboardMarkup()
         markup.add(types.InlineKeyboardButton("💰 Купить souls", callback_data="buy_souls"), types.InlineKeyboardButton("📦 Наличие", callback_data="check_stock"))
@@ -163,7 +157,6 @@ def handle_buttons(call):
         bot.edit_message_text("📦 **Текущее наличие юнитов:**\n\nПока пустует, ожидайте обновлений! Скоро здесь появятся лучшие редкости.", chat_id, msg_id, reply_markup=markup)
         bot.answer_callback_query(call.id)
 
-# Реакция на ввод админа (Начисление)
 def process_admin_add(message):
     try:
         parts = message.text.split()
@@ -185,7 +178,6 @@ def process_admin_add(message):
     except:
         bot.send_message(message.chat.id, "⚠️ Ошибка ввода. Нужно ввести ник и число через пробел.")
 
-# Реакция на ввод админа (Списание)
 def process_admin_take(message):
     try:
         parts = message.text.split()
@@ -210,7 +202,6 @@ def process_admin_take(message):
     except:
         bot.send_message(message.chat.id, "⚠️ Ошибка ввода. Нужно ввести ник и число через пробел.")
 
-# Рассылка по /update
 @bot.message_handler(commands=['update'])
 def auto_update_broadcast(message):
     if not message.from_user.username or message.from_user.username.lower() != ADMIN_USERNAME.lower(): return
