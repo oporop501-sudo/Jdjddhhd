@@ -3,7 +3,7 @@ import sqlite3
 import telebot
 from telebot import types
 
-TOKEN = '8846255632:AAFTuQcgY_u5WOM1FOjeg6ldANc9k3qnvFo'
+TOKEN = '8898188227:AAFoWQkK31YRDVqMb0gVnauzeSFzog9w5ms'
 bot = telebot.TeleBot(TOKEN)
 ADMIN_USERNAME = "BlazingSerafim"
 
