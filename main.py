@@ -18,7 +18,7 @@ def run_fake_server():
 
 threading.Thread(target=run_fake_server, daemon=True).start()
 
-TOKEN = '8898188227:AAEuWprLoWjC28IrSQUnVi347pRjvdp0yHc'
+TOKEN = '8898188227:AAFoWQkK31YRDVqMb0gVnauzeSFzog9w5ms'
 bot = telebot.TeleBot(TOKEN)
 ADMIN_USERNAME = "BlazingSerafim"
 
